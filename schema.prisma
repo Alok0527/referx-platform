@@ -1,0 +1,78 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String     @id @default(cuid())
+  email         String     @unique
+  password      String
+  name          String
+  username      String     @unique
+  profileImage  String?
+  bio           String?
+  referralCode  String     @unique @default(cuid())
+  totalRewards  Float      @default(0)
+  totalReferrals Int       @default(0)
+  isVerified    Boolean    @default(false)
+  
+  // Relations
+  referrals     Referral[] @relation("referrer")
+  referredBy    Referral? @relation("referred")
+  transactions  Transaction[]
+  
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+}
+
+model Referral {
+  id            String     @id @default(cuid())
+  referrerId    String
+  referrer      User       @relation("referrer", fields: [referrerId], references: [id], onDelete: Cascade)
+  referredId    String     @unique
+  referred      User       @relation("referred", fields: [referredId], references: [id], onDelete: Cascade)
+  
+  status        String     @default("pending") // pending, completed, expired
+  rewardAmount  Float      @default(0)
+  rewardStatus  String     @default("pending") // pending, approved, rejected, paid
+  
+  createdAt     DateTime   @default(now())
+  expiresAt     DateTime?
+  completedAt   DateTime?
+  
+  @@index([referrerId])
+  @@index([referredId])
+}
+
+model Transaction {
+  id            String     @id @default(cuid())
+  userId        String
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  type          String     // earning, withdrawal, bonus
+  amount        Float
+  description   String
+  status        String     @default("pending") // pending, completed, failed
+  
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  
+  @@index([userId])
+}
+
+model RewardConfig {
+  id            String     @id @default(cuid())
+  referralBonus Float      @default(100) // Bonus for referrer
+  signupBonus   Float      @default(50)  // Bonus for new user who signed up via referral
+  minimumWithdrawal Float  @default(500) // Minimum amount to withdraw
+  maxReferralsPerDay Int   @default(100)
+  
+  updatedAt     DateTime   @updatedAt
+}
